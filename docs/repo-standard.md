@@ -10,7 +10,8 @@ New repos are created from the Copier template in this repo (see [README](../REA
     `dalang` if it uses DaDb extensions (example and audio dictionaries, works only in DaLang).
   * Name the language if the script does not imply it (`kanji` = Japanese, `hanzi` = Chinese).
 * Module: the repo name without target in snake_case, e.g. `kanji_jlpt_levels`.
-* Release assets: `{asset}.zip` and its index as `{asset}.index.json`.
+* Release assets: `{asset}.zip`, its index as `{asset}.index.json` and its manifest (content hash + entry counts)
+  as `{asset}.manifest.json`.
   Variants (languages, audio formats) are `{asset}-{variant}.zip`.
   A DaDb only variant with extra files (manual) is `{asset}-dadb.zip`.
 
@@ -20,7 +21,8 @@ New repos are created from the Copier template in this repo (see [README](../REA
 build.py              entry point, only calls {module}.build.main(); CI always runs `uv run build.py`
 {module}/             all conversion code, also when it is a single file
   build.py            main(): fetch sources -> build banks -> package_dictionary()
-sources/{name}/       vendored source data, only if it cannot be downloaded; contains a README with origin + license
+sources.lock.json     locked versions of the fetched sources (repos whose sources change)
+vendored_sources/     frozen source data, one folder per source with a README (repos whose sources never change)
 tests/                pytest tests
 tmp/                  git ignored except .gitkeep: tmp/sources/ download cache, tmp/{asset}/ uncompressed dictionary
 out/                  git ignored except .gitkeep: release assets only (zips + .index.json)
@@ -40,9 +42,14 @@ stats/                optional, committed build statistics
 
 ## Sources
 
-* Download with `dalang_dict.fetch()`, which caches in `tmp/sources/`.
-* Pin every URL to a commit or a dated release. If a URL cannot be pinned, set `sha256`.
-* Only vendor data in `sources/{name}/` if it cannot be downloaded.
+Copier asks whether the sources change (`source_updates`), which decides how sources are handled:
+
+* **Sources change**: declare them in code (`GitHubFile`, `Url`) and download them with `dalang_dict.fetch()`,
+  which caches in `tmp/sources/` and locks every source to a version + sha256 in the committed `sources.lock.json`.
+  A source missing from the lock is locked to its latest version on the next build.
+  The *Update* workflow updates the lock weekly (`python -m dalang_dict update-sources`) and releases on changes.
+* **Sources never change**: vendor them in `vendored_sources/{name}/` with a README (origin, license, date retrieved),
+  regardless of their size. Releases are manual only.
 
 ## index.json
 
@@ -88,8 +95,14 @@ Every dictionary is validated before it is zipped:
 ## CI and releases
 
 * `ci.yml` runs on push and pull request: ruff check, ruff format check, pyright, pytest.
-* `release.yml` runs manually (plus a cron if the source changes regularly): CI, `uv run build.py`,
+* `release.yml` runs manually: CI, `uv run build.py` (fails if the build had to change `sources.lock.json`),
   then a GitHub release tagged with the UTC date containing everything in `out/`. A rebuild on the same day replaces it.
+* `update.yml` (only if the sources change) runs weekly:
+  1. updates `sources.lock.json`, stops if no source changed
+  2. runs the checks and rebuilds
+  3. compares the `{asset}.manifest.json` files with the latest release and fails if a bank lost more than 5% of its entries
+  4. commits the lock (`chore: update sources`) and creates a release only if a dictionary changed,
+     so users never download an unchanged dictionary with a new revision
 
 ## README
 
