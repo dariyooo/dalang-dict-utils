@@ -63,3 +63,7 @@ update_cron:
   help: Cron of the auto update workflow
   default: "0 4 * * 1"
   when: "{{ source_updates }}"
+
+# Keeps uv.lock in sync when an update changes pyproject.toml (e.g. a new dalang_dict_utils_tag)
+_tasks:
+  - uv lock
