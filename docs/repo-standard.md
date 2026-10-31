@@ -25,7 +25,7 @@ sources.lock.json     locked versions of the fetched sources (repos whose source
 vendored_sources/     frozen source data, one folder per source with a README (repos whose sources never change)
 tests/                pytest tests
 tmp/                  git ignored except .gitkeep: tmp/sources/ download cache, tmp/{asset}/ uncompressed dictionary
-out/                  git ignored except .gitkeep: release assets only (zips + .index.json)
+out/                  git ignored except .gitkeep: release assets only (zips + .index.json + .manifest.json)
 stats/                optional, committed build statistics
 .github/workflows/    ci.yml + release.yml, only call the reusable workflows of dalang-dict-utils
 .copier-answers.yml   managed by Copier, do not edit
