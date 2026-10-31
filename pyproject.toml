@@ -1,0 +1,38 @@
+[project]
+name = "dalang-dict-utils"
+version = "0.1.0"
+description = "Fetch sources and build, validate and package DaLang dictionaries (Yomitan format plus DaDb extensions)"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "jsonschema>=4.23",
+]
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.400",
+    "pytest>=8.3",
+    "ruff>=0.11",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dalang_dict"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = ["template"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pyright]
+include = ["src", "tests", "scripts"]
+pythonVersion = "3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
