@@ -14,6 +14,8 @@ _skip_if_exists:
   - "{{ module_name }}/**"
   - tests/**
   - vendored_sources/**
+  # Written by the `uv lock` task below, keeping it out of Copier's diff avoids merge conflicts
+  - uv.lock
 
 repo_name:
   type: str
