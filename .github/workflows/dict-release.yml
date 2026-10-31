@@ -1,0 +1,62 @@
+name: Dictionary Release
+
+# Reusable build + release for dictionary repos, see docs/repo-standard.md.
+# Builds the dictionaries and publishes everything in out/ as a GitHub release tagged with the UTC date,
+# a rebuild on the same day replaces that release.
+#
+#   permissions:
+#     contents: write
+#   jobs:
+#     ci:
+#       uses: dariyooo/dalang-dict-utils/.github/workflows/dict-ci.yml@<tag>
+#     release:
+#       needs: ci
+#       uses: dariyooo/dalang-dict-utils/.github/workflows/dict-release.yml@<tag>
+
+on:
+  workflow_call:
+    inputs:
+      build-command:
+        description: Command that builds the dictionaries into out/
+        type: string
+        default: uv run build.py
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Build dictionaries
+        run: ${{ inputs.build-command }}
+
+      - name: Check build output
+        run: |
+          shopt -s nullglob
+          assets=(out/*.zip out/*.json)
+          if [ ${#assets[@]} -eq 0 ]; then
+            echo "No release assets in out/" >&2
+            exit 1
+          fi
+          printf '%s\n' "${assets[@]}"
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          TAG="$(date -u +%Y-%m-%d)"
+          if gh release view "$TAG" --repo "$REPO" > /dev/null 2>&1; then
+            echo "Release $TAG already exists, replacing it."
+            gh release delete "$TAG" --repo "$REPO" --cleanup-tag --yes
+          fi
+          gh release create "$TAG" out/*.zip out/*.json --repo "$REPO" --title "$TAG" --generate-notes --latest
