@@ -90,7 +90,8 @@ Every dictionary is validated before it is zipped:
 
 * Against Yomitan's schemas, vendored in `src/dalang_dict/schemas/yomitan/` and synced weekly by
   `.github/workflows/sync-yomitan-schemas.yml`, which commits upstream changes.
-* Against DaDb's schemas for the extensions, vendored by hand in `src/dalang_dict/schemas/dadb/`.
+* Planned: against DaDb's schemas for the extensions, synced the same way once they are published with the DaLang website.
+  Until then `validate_dictionary_dir()` rejects bank files it has no schema for.
 
 ## CI and releases
 
