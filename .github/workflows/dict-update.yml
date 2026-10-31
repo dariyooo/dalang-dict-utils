@@ -1,0 +1,98 @@
+name: Dictionary Update
+
+# Reusable auto update for dictionary repos whose sources change, see docs/repo-standard.md.
+# Updates sources.lock.json to the latest version of every source and, if a source changed, runs the checks,
+# rebuilds and compares the build with the previous release: the lock update is always committed,
+# a release is only created if a dictionary changed. Fails if a bank lost more than `max-entry-drop` entries.
+#
+#   on:
+#     schedule:
+#       - cron: "0 4 * * 1"
+#   permissions:
+#     contents: write
+#   jobs:
+#     update:
+#       uses: dariyooo/dalang-dict-utils/.github/workflows/dict-update.yml@<tag>
+
+on:
+  workflow_call:
+    inputs:
+      build-command:
+        description: Command that builds the dictionaries into out/
+        type: string
+        default: uv run build.py
+      max-entry-drop:
+        description: Largest allowed share of lost entries per bank compared to the previous release
+        type: number
+        default: 0.05
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency: dict-release
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Update sources
+        id: sources
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: uv run python -m dalang_dict update-sources
+
+      - name: Check
+        if: steps.sources.outputs.changed == 'true'
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+          uv run pyright
+          uv run pytest
+
+      - name: Build dictionaries
+        if: steps.sources.outputs.changed == 'true'
+        run: ${{ inputs.build-command }}
+
+      - name: Download previous release manifests
+        if: steps.sources.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p tmp/previous-release
+          gh release download --repo "$GITHUB_REPOSITORY" --pattern "*.manifest.json" --dir tmp/previous-release \
+            || echo "No previous release with manifests, every dictionary counts as changed."
+
+      - name: Compare with previous release
+        id: release
+        if: steps.sources.outputs.changed == 'true'
+        run: >-
+          uv run python -m dalang_dict release-changed
+          --previous tmp/previous-release --max-entry-drop ${{ inputs.max-entry-drop }}
+
+      - name: Commit updated sources
+        if: steps.sources.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add sources.lock.json
+          git commit -m "chore: update sources"
+          git push
+
+      - name: Create release
+        if: steps.release.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="$(date -u +%Y-%m-%d)"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "Release $TAG already exists, replacing it."
+            gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
+          fi
+          gh release create "$TAG" out/*.zip out/*.json --repo "$GITHUB_REPOSITORY" --title "$TAG" --generate-notes --latest

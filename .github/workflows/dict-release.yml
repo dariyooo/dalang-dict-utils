@@ -26,6 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    concurrency: dict-release
     steps:
       - uses: actions/checkout@v4
 
@@ -38,6 +39,14 @@ jobs:
 
       - name: Build dictionaries
         run: ${{ inputs.build-command }}
+
+      - name: Check sources are locked
+        run: |
+          if [ -n "$(git status --porcelain -- sources.lock.json)" ]; then
+            echo "The build changed sources.lock.json, commit the lock first (run \`uv run build.py\` locally)." >&2
+            git diff -- sources.lock.json >&2
+            exit 1
+          fi
 
       - name: Check build output
         run: |
