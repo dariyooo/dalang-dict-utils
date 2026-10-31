@@ -1,0 +1,19 @@
+name: Release
+
+on:
+  workflow_dispatch:
+{%- if release_cron %}
+  schedule:
+    - cron: "{{ release_cron }}"
+{%- endif %}
+
+permissions:
+  contents: write
+
+jobs:
+  ci:
+    uses: dariyooo/dalang-dict-utils/.github/workflows/dict-ci.yml@{{ dalang_dict_utils_tag }}
+
+  release:
+    needs: ci
+    uses: dariyooo/dalang-dict-utils/.github/workflows/dict-release.yml@{{ dalang_dict_utils_tag }}

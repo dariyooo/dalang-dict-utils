@@ -1,0 +1,44 @@
+# {{ repo_name }}
+
+{{ description }}
+
+## Sources
+
+Where the data comes from, which commit / release is used and how the dictionary is derived from it.
+
+## Installation
+
+Make sure [uv](https://github.com/astral-sh/uv) is installed on your system and run
+
+``` bash
+uv sync
+```
+
+## Usage
+
+``` bash
+uv run build.py
+```
+
+This creates the dictionary in `out/` (`{{ repo_name }}.zip` + `{{ repo_name }}.index.json`).
+Downloaded sources are cached in `tmp/sources/`, the uncompressed dictionary is kept in `tmp/{{ repo_name }}/` for inspection.
+
+## Development
+
+``` bash
+uv run ruff check .          # lint
+uv run ruff format .         # format
+uv run pyright               # type check
+uv run pytest                # tests
+```
+
+The repo follows the [DaLang dictionary repo standard](https://github.com/dariyooo/dalang-dict-utils/blob/main/docs/repo-standard.md),
+update the shared setup with `uvx copier update --trust`.
+
+## Release
+
+Run the *Release* workflow from the Actions tab.
+It runs the checks, builds the dictionary and publishes it as a GitHub release tagged with the date.
+Installed dictionaries pick up new releases through "Check for updates".
+
+## License

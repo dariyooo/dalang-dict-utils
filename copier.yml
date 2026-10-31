@@ -1,0 +1,56 @@
+# Copier template for DaLang dictionary repos, see docs/repo-standard.md.
+#
+#   new repo:       uvx copier copy --trust gh:dariyooo/dalang-dict-utils <repo>
+#   update a repo:  uvx copier update --trust
+
+_subdirectory: template
+_answers_file: .copier-answers.yml
+_min_copier_version: "9.4"
+
+# Files the repo owns after creation, `copier update` never touches them
+_skip_if_exists:
+  - README.md
+  - build.py
+  - "{{ module_name }}/**"
+  - tests/**
+
+repo_name:
+  type: str
+  help: "Repo name, `{script}-{content}-{target}` (e.g. kanji-jlpt-levels-yomitan)"
+  validator: >-
+    {% if not (repo_name | regex_search('^[a-z0-9]+(-[a-z0-9]+)*-(yomitan|dalang)$')) %}
+    Use lowercase kebab-case ending in -yomitan or -dalang
+    {% endif %}
+
+module_name:
+  type: str
+  help: Python module with the conversion code
+  default: "{{ repo_name | regex_replace('-(yomitan|dalang)$', '') | replace('-', '_') }}"
+  validator: >-
+    {% if not (module_name | regex_search('^[a-z][a-z0-9_]*$')) %}
+    Use a lowercase snake_case module name
+    {% endif %}
+
+description:
+  type: str
+  help: One line summary of the dictionary
+
+github_owner:
+  type: str
+  help: GitHub owner of the repo
+  default: dariyooo
+
+python_version:
+  type: str
+  help: Python version
+  default: "3.12"
+
+dalang_dict_utils_tag:
+  type: str
+  help: dalang-dict-utils tag for the package and the reusable workflows
+  default: v0.1.0
+
+release_cron:
+  type: str
+  help: Cron for scheduled releases if the source changes regularly (e.g. "0 4 * * 1"), empty for manual releases only
+  default: ""

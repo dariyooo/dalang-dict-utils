@@ -1,0 +1,26 @@
+from dalang_dict import build_index, fetch, github_source, package_dictionary
+
+GITHUB_REPO = "{{ github_owner }}/{{ repo_name }}"
+ASSET = "{{ repo_name }}"
+
+# Pin sources to a commit (or set sha256), see docs/repo-standard.md of dalang-dict-utils
+SOURCE = github_source("source.json", "owner/repo", "<commit>", "path/to/source.json")
+
+INDEX_FIELDS = {
+    "author": "",
+    "url": f"https://github.com/{GITHUB_REPO}",
+    "description": "{{ description }}",
+    "attribution": "",
+}
+
+
+def build_banks(source: object) -> dict[str, list]:
+    """Converts the source data to bank entries, e.g. {"kanji_bank": [...]}."""
+    raise NotImplementedError
+
+
+def main() -> None:
+    source = fetch(SOURCE)
+    banks = build_banks(source)
+    index = build_index("{{ repo_name }}", GITHUB_REPO, ASSET, **INDEX_FIELDS)
+    package_dictionary(ASSET, index, banks)

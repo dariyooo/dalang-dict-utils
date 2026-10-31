@@ -1,0 +1,11 @@
+__pycache__/
+*.py[codz]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Build output, the folders are kept so intermediate results can always be inspected
+tmp/**
+!tmp/.gitkeep
+out/**
+!out/.gitkeep

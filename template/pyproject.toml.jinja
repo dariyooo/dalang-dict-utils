@@ -1,0 +1,37 @@
+[project]
+name = "{{ repo_name }}"
+version = "0.1.0"
+description = "{{ description }}"
+readme = "README.md"
+requires-python = ">={{ python_version }}"
+dependencies = [
+    "dalang-dict-utils",
+]
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.400",
+    "pytest>=8.3",
+    "ruff>=0.11",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+dalang-dict-utils = { git = "https://github.com/dariyooo/dalang-dict-utils", tag = "{{ dalang_dict_utils_tag }}" }
+
+[tool.ruff]
+line-length = 120
+target-version = "py{{ python_version | replace('.', '') }}"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pyright]
+include = ["build.py", "{{ module_name }}", "tests"]
+pythonVersion = "{{ python_version }}"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

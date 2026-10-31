@@ -1,0 +1,10 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ci:
+    uses: dariyooo/dalang-dict-utils/.github/workflows/dict-ci.yml@{{ dalang_dict_utils_tag }}
