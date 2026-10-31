@@ -1,0 +1,16 @@
+{
+  "repo": "yomidevs/yomitan",
+  "path": "ext/data/schemas",
+  "commit": "d3c54c10264673eca0d66b970ef74cd5c8b048e3",
+  "commitDate": "2026-10-22T03:51:52Z",
+  "files": [
+    "dictionary-index-schema.json",
+    "dictionary-kanji-bank-v1-schema.json",
+    "dictionary-kanji-bank-v3-schema.json",
+    "dictionary-kanji-meta-bank-v3-schema.json",
+    "dictionary-tag-bank-v3-schema.json",
+    "dictionary-term-bank-v1-schema.json",
+    "dictionary-term-bank-v3-schema.json",
+    "dictionary-term-meta-bank-v3-schema.json"
+  ]
+}
