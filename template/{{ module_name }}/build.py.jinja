@@ -1,10 +1,21 @@
-from dalang_dict import build_index, fetch, github_source, package_dictionary
+{%- if source_updates -%}
+from dalang_dict import GitHubFile, build_index, fetch, package_dictionary
+{%- else -%}
+from pathlib import Path
+
+from dalang_dict import build_index, package_dictionary
+{%- endif %}
 
 GITHUB_REPO = "{{ github_owner }}/{{ repo_name }}"
 ASSET = "{{ repo_name }}"
+TITLE = "{{ repo_name }}"
 
-# Pin sources to a commit (or set sha256), see docs/repo-standard.md of dalang-dict-utils
-SOURCE = github_source("source.json", "owner/repo", "<commit>", "path/to/source.json")
+{% if source_updates -%}
+# Locked to a version in sources.lock.json, updated by the Update workflow
+SOURCE = GitHubFile("source.json", repo="owner/repo", path="path/to/source.json")
+{%- else -%}
+SOURCE = Path("vendored_sources/<name>/<file>")
+{%- endif %}
 
 INDEX_FIELDS = {
     "author": "",
@@ -20,7 +31,10 @@ def build_banks(source: object) -> dict[str, list]:
 
 
 def main() -> None:
-    source = fetch(SOURCE)
-    banks = build_banks(source)
-    index = build_index("{{ repo_name }}", GITHUB_REPO, ASSET, **INDEX_FIELDS)
+{%- if source_updates %}
+    banks = build_banks(fetch(SOURCE))
+{%- else %}
+    banks = build_banks(SOURCE)
+{%- endif %}
+    index = build_index(TITLE, GITHUB_REPO, ASSET, **INDEX_FIELDS)
     package_dictionary(ASSET, index, banks)

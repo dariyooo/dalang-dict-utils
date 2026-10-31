@@ -13,6 +13,7 @@ _skip_if_exists:
   - build.py
   - "{{ module_name }}/**"
   - tests/**
+  - vendored_sources/**
 
 repo_name:
   type: str
@@ -48,9 +49,17 @@ python_version:
 dalang_dict_utils_tag:
   type: str
   help: dalang-dict-utils tag for the package and the reusable workflows
-  default: v0.1.0
+  default: v0.2.0
 
-release_cron:
+source_updates:
+  type: bool
+  help: >-
+    Do the sources change? Yes: sources are fetched, locked in sources.lock.json and a weekly workflow
+    rebuilds and releases on changes. No: frozen data is vendored in vendored_sources/ and released manually
+  default: true
+
+update_cron:
   type: str
-  help: Cron for scheduled releases if the source changes regularly (e.g. "0 4 * * 1"), empty for manual releases only
-  default: ""
+  help: Cron of the auto update workflow
+  default: "0 4 * * 1"
+  when: "{{ source_updates }}"

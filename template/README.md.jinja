@@ -4,7 +4,13 @@
 
 ## Sources
 
-Where the data comes from, which commit / release is used and how the dictionary is derived from it.
+Where the data comes from and how the dictionary is derived from it.
+{% if source_updates %}
+The sources are locked to a version in `sources.lock.json`.
+The *Update* workflow checks them weekly, commits newer versions and releases the dictionary if it changed.
+{%- else %}
+The sources never change and are vendored in `vendored_sources/`.
+{%- endif %}
 
 ## Installation
 
