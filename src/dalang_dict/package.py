@@ -1,5 +1,6 @@
 """Writing bank files and packaging them as dictionary zips into out/."""
 
+import hashlib
 import json
 import shutil
 import zipfile
@@ -29,6 +30,25 @@ def write_banks(banks: dict[str, list], directory: Path, chunk_size: int = BANK_
     return paths
 
 
+def build_manifest(index: dict, files: dict[str, Path], banks: dict[str, list]) -> dict:
+    """Content hash and entry counts of a dictionary, used to only release changed dictionaries.
+
+    The hash covers every file of the zip (`files` maps archive names to paths) but not the index's revision,
+    so a rebuild of unchanged data has the same hash.
+    """
+    digest = hashlib.sha256()
+    index_without_revision = {k: v for k, v in index.items() if k != "revision"}
+    digest.update(json.dumps(index_without_revision, ensure_ascii=False, sort_keys=True).encode())
+    for arcname in sorted(files):
+        digest.update(arcname.encode())
+        digest.update(files[arcname].read_bytes())
+    return {
+        "revision": index["revision"],
+        "contentSha256": digest.hexdigest(),
+        "entries": {bank: len(entries) for bank, entries in sorted(banks.items())},
+    }
+
+
 def package_dictionary(
     package_name: str,
     index: dict,
@@ -41,6 +61,7 @@ def package_dictionary(
 
     The uncompressed files are kept in `tmp/{package_name}/` for debugging and the index is also written
     to `out/{package_name}.index.json` to be uploaded with the release for Yomitan's update check.
+    `out/{package_name}.manifest.json` holds the content hash and entry counts (see `build_manifest()`).
     `extra_files` maps archive names to files that are added as is (e.g. a manual for DaDb).
     """
     package_dir = tmp_dir / package_name
@@ -53,14 +74,15 @@ def package_dictionary(
     bank_files = write_banks(banks, package_dir)
     validate_dictionary_dir(package_dir)
 
+    content = {path.name: path for path in bank_files} | (extra_files or {})
     zip_path = out_dir / f"{package_name}.zip"
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
         zipf.write(package_dir / "index.json", arcname="index.json")
-        for path in bank_files:
-            zipf.write(path, arcname=path.name)
-        for arcname, path in (extra_files or {}).items():
+        for arcname, path in content.items():
             zipf.write(path, arcname=arcname)
     (out_dir / f"{package_name}.index.json").write_text(index_json, encoding="utf-8")
+    manifest = build_manifest(index, content, banks)
+    (out_dir / f"{package_name}.manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 
     print(f"Exported {sum(map(len, banks.values()))} entries to '{zip_path}'.")
     return zip_path
