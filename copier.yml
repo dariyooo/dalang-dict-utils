@@ -21,14 +21,14 @@ repo_name:
   type: str
   help: "Repo name, `{script}-{content}-{target}` (e.g. kanji-jlpt-levels-yomitan)"
   validator: >-
-    {% if not (repo_name | regex_search('^[a-z0-9]+(-[a-z0-9]+)*-(yomitan|dalang)$')) %}
-    Use lowercase kebab-case ending in -yomitan or -dalang
+    {% if not (repo_name | regex_search('^[a-z0-9]+(-[a-z0-9]+)*-(yomitan|dakanji|dahanzi|dahanja|dalang)$')) %}
+    Use lowercase kebab-case ending in -yomitan, -dakanji, -dahanzi, -dahanja or -dalang
     {% endif %}
 
 module_name:
   type: str
   help: Python module with the conversion code
-  default: "{{ repo_name | regex_replace('-(yomitan|dalang)$', '') | replace('-', '_') }}"
+  default: "{{ repo_name | regex_replace('-(yomitan|dakanji|dahanzi|dahanja|dalang)$', '') | replace('-', '_') }}"
   validator: >-
     {% if not (module_name | regex_search('^[a-z][a-z0-9_]*$')) %}
     Use a lowercase snake_case module name

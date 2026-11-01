@@ -6,9 +6,13 @@ New repos are created from the Copier template in this repo (see [README](../REA
 ## Naming
 
 * Repos: `{script}-{content}-{target}`, lowercase kebab-case, e.g. `kanji-jlpt-levels-yomitan`, `kanji-visual-similarity-yomitan`.
-  * `target` is `yomitan` if the dictionary only uses the Yomitan format (works in Yomitan **and** DaLang),
-    `dalang` if it uses DaDb extensions (example and audio dictionaries, works only in DaLang).
+  * `target` is `yomitan` if the dictionary only uses the Yomitan format (works in Yomitan **and** the DaLang apps).
+    Dictionaries with DaDb extensions (example and audio dictionaries, they only work in the apps) are named after
+    their app: `dakanji` (Japanese), `dahanzi` (Chinese), `dahanja` (Korean),
+    or `dalang` if they are useful across languages (e.g. Tatoeba).
   * Name the language if the script does not imply it (`kanji` = Japanese, `hanzi` = Chinese).
+* User-facing text (GitHub description, README) names the app, e.g. "for Yomitan and DaKanji" for Japanese dictionaries.
+  DaLang is only the name of the shared format and tooling.
 * Module: the repo name without target in snake_case, e.g. `kanji_jlpt_levels`.
 * Release assets: `{asset}.zip`, its index as `{asset}.index.json` and its manifest (content hash + entry counts)
   as `{asset}.manifest.json`.
