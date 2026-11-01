@@ -13,7 +13,7 @@ _skip_if_exists:
   - build.py
   - "{{ module_name }}/**"
   - tests/**
-  - vendored_sources/**
+  - vendored_sources/README.md
   # Written by the `uv lock` task below, keeping it out of Copier's diff avoids merge conflicts
   - uv.lock
 
@@ -51,7 +51,7 @@ python_version:
 dalang_dict_utils_tag:
   type: str
   help: dalang-dict-utils tag for the package and the reusable workflows
-  default: v0.3.1
+  default: v0.3.2
 
 source_updates:
   type: bool
