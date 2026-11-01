@@ -44,7 +44,7 @@ stats/                optional, committed build statistics
 
 Copier asks whether the sources change (`source_updates`), which decides how sources are handled:
 
-* **Sources change**: declare them in code (`GitHubFile`, `Url`) and download them with `dalang_dict.fetch()`,
+* **Sources change**: declare them in code (`GitHubFile`, `GitHubReleaseAsset`, `Url`) and download them with `dalang_dict.fetch()`,
   which caches in `tmp/sources/` and locks every source to a version + sha256 in the committed `sources.lock.json`.
   A source missing from the lock is locked to its latest version on the next build.
   The *Update* workflow updates the lock weekly (`python -m dalang_dict update-sources`) and releases on changes.
@@ -53,7 +53,7 @@ Copier asks whether the sources change (`source_updates`), which decides how sou
   Releases are manual only.
 
 Every source has a free text `used_for` (what the dictionary takes from it) and a version:
-the commit for `GitHubFile`, the download date for `Url`, the declared version for `Vendored`.
+the commit for `GitHubFile`, the release tag for `GitHubReleaseAsset`, the download date for `Url`, the declared version for `Vendored`.
 `fetch()` records both, `package_dictionary()` writes them into the manifest and the release notes list them
 together with the changes since the previous release (source versions, entry counts).
 
