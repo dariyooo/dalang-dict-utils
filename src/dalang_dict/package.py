@@ -86,7 +86,8 @@ def package_dictionary(
             zipf.write(path, arcname=arcname)
     (out_dir / f"{package_name}.index.json").write_text(index_json, encoding="utf-8")
     manifest = build_manifest(index, content, banks, used_sources() if sources is None else sources)
-    (out_dir / f"{package_name}.manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    manifest_json = json.dumps(manifest, ensure_ascii=False, indent=2) + "\n"
+    (out_dir / f"{package_name}.manifest.json").write_text(manifest_json, encoding="utf-8")
 
     print(f"Exported {sum(map(len, banks.values()))} entries to '{zip_path}'.")
     return zip_path
