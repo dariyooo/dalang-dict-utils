@@ -51,7 +51,7 @@ python_version:
 dalang_dict_utils_tag:
   type: str
   help: dalang-dict-utils tag for the package and the reusable workflows
-  default: v0.3.0
+  default: v0.3.1
 
 source_updates:
   type: bool
