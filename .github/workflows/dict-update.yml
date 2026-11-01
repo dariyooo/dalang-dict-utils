@@ -2,8 +2,9 @@ name: Dictionary Update
 
 # Reusable auto update for dictionary repos whose sources change, see docs/repo-standard.md.
 # Updates sources.lock.json to the latest version of every source and, if a source changed, runs the checks,
-# rebuilds and compares the build with the previous release: the lock update is always committed,
+# rebuilds and compares the build with the latest release: the lock update is always committed,
 # a release is only created if a dictionary changed. Fails if a bank lost more than `max-entry-drop` entries.
+# The release is tagged with the UTC date, a release of the same day is replaced.
 #
 #   on:
 #     schedule:
@@ -33,6 +34,11 @@ jobs:
       contents: write
     concurrency: dict-release
     steps:
+      # Fixed once, so the tag and the revision are the same day even if the run crosses midnight
+      - name: Release tag
+        id: tag
+        run: echo "value=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v4
 
       - uses: astral-sh/setup-uv@v6
@@ -58,23 +64,34 @@ jobs:
 
       - name: Build dictionaries
         if: steps.sources.outputs.changed == 'true'
+        env:
+          DALANG_DICT_REVISION: ${{ steps.tag.outputs.value }}
         run: ${{ inputs.build-command }}
 
-      - name: Download previous release manifests
+      - name: Download release manifests
         if: steps.sources.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.value }}
         run: |
-          mkdir -p tmp/previous-release
-          gh release download --repo "$GITHUB_REPOSITORY" --pattern "*.manifest.json" --dir tmp/previous-release \
+          # The latest release decides whether a dictionary changed. The release notes compare with the latest
+          # release of another day, a release of today is replaced below.
+          mkdir -p tmp/latest-release tmp/previous-release
+          gh release download --repo "$GITHUB_REPOSITORY" --pattern "*.manifest.json" --dir tmp/latest-release \
             || echo "No previous release with manifests, every dictionary counts as changed."
+          PREVIOUS="$(gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts --json tagName \
+            --jq "[.[].tagName | select(. != \"$TAG\")][0] // empty")"
+          if [ -n "$PREVIOUS" ]; then
+            gh release download "$PREVIOUS" --repo "$GITHUB_REPOSITORY" --pattern "*.manifest.json" \
+              --dir tmp/previous-release || echo "Release $PREVIOUS has no manifests."
+          fi
 
-      - name: Compare with previous release
+      - name: Compare with latest release
         id: release
         if: steps.sources.outputs.changed == 'true'
         run: >-
           uv run python -m dalang_dict release-changed
-          --previous tmp/previous-release --max-entry-drop ${{ inputs.max-entry-drop }}
+          --previous tmp/latest-release --max-entry-drop ${{ inputs.max-entry-drop }}
 
       - name: Commit updated sources
         if: steps.sources.outputs.changed == 'true'
@@ -93,8 +110,8 @@ jobs:
         if: steps.release.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.value }}
         run: |
-          TAG="$(date -u +%Y-%m-%d)"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             echo "Release $TAG already exists, replacing it."
             gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes

@@ -126,7 +126,9 @@ Every dictionary is validated against the rules of its format before it is zippe
   2. runs the checks and rebuilds
   3. compares the `{asset}.manifest.json` files with the latest release and fails if a bank lost more than 5% of its entries
   4. commits the lock (`chore: update sources`) and creates a release only if a dictionary changed,
-     so users never download an unchanged dictionary with a new revision
+     so users never download an unchanged dictionary with a new revision.
+     The release is tagged with the UTC date and replaces a release of the same day,
+     its notes compare with the latest release of another day.
 
 ## README
 
