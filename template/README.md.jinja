@@ -43,8 +43,13 @@ update the shared setup with `uvx copier update --trust`.
 
 ## Release
 
-Run the *Release* workflow from the Actions tab.
-It runs the checks, builds the dictionary and publishes it as a GitHub release tagged with the date.
+Push a tag with today's date:
+
+``` bash
+git tag 2026-11-01 && git push origin 2026-11-01
+```
+
+The *Release* workflow runs the checks, builds the dictionary with the tag as revision and publishes it as the GitHub release of the tag.
 Installed dictionaries pick up new releases through "Check for updates".
 
 ## License
