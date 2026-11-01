@@ -53,7 +53,8 @@ def _manifest_notes(name: str, new: dict, old: dict | None) -> list[str]:
         lines += ["", "First release."]
         return lines
     changes = []
-    old_sources = old.get("sources", {})
+    # Manifests of releases before source tracking have no sources to compare
+    old_sources = old.get("sources", sources)
     for source in sorted(sources.keys() | old_sources.keys()):
         old_version = old_sources.get(source, {}).get("version")
         new_version = sources.get(source, {}).get("version")

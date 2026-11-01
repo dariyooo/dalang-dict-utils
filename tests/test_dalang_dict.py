@@ -182,3 +182,7 @@ def test_release_notes_list_sources_and_changes(tmp_path):
     assert "Changes since 2026-11-01" in notes
     assert "- `data.json`: `aaaaaaa` → `bbbbbbb`" in notes
     assert "- `kanji_meta_bank`: 2 → 3 entries" in notes
+
+    del old["sources"]  # released before source tracking
+    (previous / "Test_Dict.manifest.json").write_text(json.dumps(old))
+    assert "data.json`:" not in release_notes(out, previous)
