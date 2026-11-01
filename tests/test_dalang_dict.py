@@ -28,6 +28,11 @@ def test_build_index_points_to_latest_release():
     assert index["author"] == "me"
 
 
+def test_build_index_takes_revision_from_env(monkeypatch):
+    monkeypatch.setenv("DALANG_DICT_REVISION", "2026-11-01")
+    assert build_index("Test", "owner/repo", "Test_Dict")["revision"] == "2026-11-01"
+
+
 def test_write_banks_splits_into_chunks(tmp_path):
     paths = write_banks({"kanji_meta_bank": [["一", "freq", i] for i in range(5)]}, tmp_path, chunk_size=2)
     assert [p.name for p in paths] == ["kanji_meta_bank_1.json", "kanji_meta_bank_2.json", "kanji_meta_bank_3.json"]
