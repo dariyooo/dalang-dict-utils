@@ -5,7 +5,7 @@
 
 _subdirectory: template
 _answers_file: .copier-answers.yml
-_min_copier_version: "9.4"
+_min_copier_version: "9.5"
 
 # Files the repo owns after creation, `copier update` never touches them
 _skip_if_exists:
@@ -66,6 +66,12 @@ update_cron:
   default: "0 4 * * 1"
   when: "{{ source_updates }}"
 
-# Keeps uv.lock in sync when an update changes pyproject.toml (e.g. a new dalang_dict_utils_tag)
+# Creates uv.lock on copy. On update, tasks run before the repo's own changes (e.g. extra dependencies) are merged
+# back, so the lock is updated by an "after" migration instead, which sees the merged pyproject.toml.
 _tasks:
-  - uv lock
+  - command: uv lock
+    when: "{{ _copier_operation == 'copy' }}"
+
+_migrations:
+  - command: uv lock
+    when: "{{ _stage == 'after' }}"
