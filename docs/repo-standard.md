@@ -55,7 +55,7 @@ Copier asks whether the sources change (`source_updates`), which decides how sou
 
 Created with `dalang_dict.build_index()`:
 
-* `format: 3`, `revision` is the build date `YYYY-MM-DD`.
+* `format: 3`, `revision` is the release tag, i.e. the date `YYYY-MM-DD`.
   **Never change the revision format of a released dictionary**: DaLang compares dotted numbers numerically and
   everything else as strings, so a format change breaks update checks.
 * `isUpdatable`, `indexUrl` and `downloadUrl` point to `releases/latest/download/` of the repo.
@@ -96,8 +96,10 @@ Every dictionary is validated before it is zipped:
 ## CI and releases
 
 * `ci.yml` runs on push and pull request: ruff check, ruff format check, pyright, pytest.
-* `release.yml` runs manually: CI, `uv run build.py` (fails if the build had to change `sources.lock.json`),
-  then a GitHub release tagged with the UTC date containing everything in `out/`. A rebuild on the same day replaces it.
+* `release.yml` runs on a pushed tag `YYYY-MM-DD`: CI, `uv run build.py` with the tag as revision
+  (`DALANG_DICT_REVISION`, fails if the build had to change `sources.lock.json`),
+  then the GitHub release of the tag containing everything in `out/`.
+  To redo a release, delete the release and the tag and push the tag again.
 * `update.yml` (only if the sources change) runs weekly:
   1. updates `sources.lock.json`, stops if no source changed
   2. runs the checks and rebuilds
