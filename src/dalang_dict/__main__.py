@@ -2,15 +2,17 @@
 
     uv run python -m dalang_dict update-sources
     uv run python -m dalang_dict release-changed --previous tmp/previous-release
+    uv run python -m dalang_dict release-notes --previous tmp/previous-release > tmp/release-notes.md
 
-Both print what changed and, when run in GitHub Actions, set the step output `changed` to true or false.
+`update-sources` and `release-changed` print what changed and, when run in GitHub Actions,
+set the step output `changed` to true or false.
 """
 
 import argparse
 import os
 from pathlib import Path
 
-from dalang_dict.release import DEFAULT_MAX_ENTRY_DROP, release_changed
+from dalang_dict.release import DEFAULT_MAX_ENTRY_DROP, release_changed, release_notes
 from dalang_dict.sources import update_sources
 
 
@@ -28,8 +30,14 @@ def main() -> None:
     release.add_argument("--previous", type=Path, required=True, help="manifests of the previous release")
     release.add_argument("--out", type=Path, default=Path("out"))
     release.add_argument("--max-entry-drop", type=float, default=DEFAULT_MAX_ENTRY_DROP)
+    notes = commands.add_parser("release-notes", help="sources and changes since the previous release")
+    notes.add_argument("--previous", type=Path, required=True, help="manifests of the previous release")
+    notes.add_argument("--out", type=Path, default=Path("out"))
     args = parser.parse_args()
 
+    if args.command == "release-notes":
+        print(release_notes(args.out, args.previous), end="")
+        return
     if args.command == "update-sources":
         changed = update_sources()
         print(f"Updated sources: {', '.join(changed)}" if changed else "All sources are up to date.")

@@ -6,6 +6,7 @@ import shutil
 import zipfile
 from pathlib import Path
 
+from dalang_dict.sources import used_sources
 from dalang_dict.validate import validate_dictionary_dir
 
 DEFAULT_TMP_DIR = Path("tmp")
@@ -30,11 +31,11 @@ def write_banks(banks: dict[str, list], directory: Path, chunk_size: int = BANK_
     return paths
 
 
-def build_manifest(index: dict, files: dict[str, Path], banks: dict[str, list]) -> dict:
-    """Content hash and entry counts of a dictionary, used to only release changed dictionaries.
+def build_manifest(index: dict, files: dict[str, Path], banks: dict[str, list], sources: dict[str, dict]) -> dict:
+    """Content hash, entry counts and sources of a dictionary, used to only release changed dictionaries.
 
     The hash covers every file of the zip (`files` maps archive names to paths) but not the index's revision,
-    so a rebuild of unchanged data has the same hash.
+    so a rebuild of unchanged data has the same hash. `sources` (see `used_sources()`) is listed in the release notes.
     """
     digest = hashlib.sha256()
     index_without_revision = {k: v for k, v in index.items() if k != "revision"}
@@ -46,6 +47,7 @@ def build_manifest(index: dict, files: dict[str, Path], banks: dict[str, list]) 
         "revision": index["revision"],
         "contentSha256": digest.hexdigest(),
         "entries": {bank: len(entries) for bank, entries in sorted(banks.items())},
+        "sources": sources,
     }
 
 
@@ -54,6 +56,7 @@ def package_dictionary(
     index: dict,
     banks: dict[str, list],
     extra_files: dict[str, Path] | None = None,
+    sources: dict[str, dict] | None = None,
     tmp_dir: Path = DEFAULT_TMP_DIR,
     out_dir: Path = DEFAULT_OUT_DIR,
 ) -> Path:
@@ -61,8 +64,9 @@ def package_dictionary(
 
     The uncompressed files are kept in `tmp/{package_name}/` for debugging and the index is also written
     to `out/{package_name}.index.json` to be uploaded with the release for Yomitan's update check.
-    `out/{package_name}.manifest.json` holds the content hash and entry counts (see `build_manifest()`).
+    `out/{package_name}.manifest.json` holds the content hash, entry counts and sources (see `build_manifest()`).
     `extra_files` maps archive names to files that are added as is (e.g. a manual for DaDb).
+    `sources` defaults to every source fetched so far, pass a subset if the repo builds several dictionaries.
     """
     package_dir = tmp_dir / package_name
     shutil.rmtree(package_dir, ignore_errors=True)
@@ -81,7 +85,7 @@ def package_dictionary(
         for arcname, path in content.items():
             zipf.write(path, arcname=arcname)
     (out_dir / f"{package_name}.index.json").write_text(index_json, encoding="utf-8")
-    manifest = build_manifest(index, content, banks)
+    manifest = build_manifest(index, content, banks, used_sources() if sources is None else sources)
     (out_dir / f"{package_name}.manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 
     print(f"Exported {sum(map(len, banks.values()))} entries to '{zip_path}'.")

@@ -1,3 +1,4 @@
+import datetime
 import hashlib
 import json
 import zipfile
@@ -7,12 +8,15 @@ import pytest
 from dalang_dict import (
     GitHubFile,
     Url,
+    Vendored,
     build_index,
     fetch,
     manifest_changed,
     package_dictionary,
     release_changed,
+    release_notes,
     update_sources,
+    used_sources,
     validate_dictionary_dir,
     write_banks,
 )
@@ -56,6 +60,7 @@ def test_package_dictionary_writes_zip_and_release_index(tmp_path):
     assert json.loads((tmp_path / "out" / "Test_Dict.index.json").read_text(encoding="utf-8")) == index
     manifest = json.loads((tmp_path / "out" / "Test_Dict.manifest.json").read_text(encoding="utf-8"))
     assert manifest["entries"] == {"kanji_meta_bank": 1}
+    assert manifest["sources"] == used_sources()
 
 
 def _package(tmp_path, revision, entries):
@@ -90,6 +95,23 @@ def test_fetch_locks_new_source_and_verifies_it(tmp_path):
     path.unlink()  # forces a download of the changed source
     with pytest.raises(ValueError, match="update-sources"):
         fetch(source, cache_dir=cache, lock_file=lock_file)
+
+
+def test_fetch_records_versions_and_use(tmp_path):
+    lock_file, cache = tmp_path / "sources.lock.json", tmp_path / "cache"
+    source = Url("source.txt", _url_source(tmp_path, "data").address, used_for="everything")
+    fetch(source, cache_dir=cache, lock_file=lock_file)
+    vendored = Vendored("frozen", str(tmp_path / "frozen.txt"), version="2020-01-01", used_for="old data")
+    assert fetch(vendored) == tmp_path / "frozen.txt"
+
+    today = datetime.date.today().isoformat()
+    assert used_sources()["source.txt"] == {"version": today, "usedFor": "everything"}
+    assert used_sources()["frozen"] == {"version": "2020-01-01", "usedFor": "old data"}
+    assert "used_for" not in load_lock(lock_file)["source.txt"]
+
+    # Changing the description does not relock the source
+    fetch(Url("source.txt", source.address, used_for="other"), cache_dir=cache, lock_file=lock_file)
+    assert load_lock(lock_file)["source.txt"]["version"] == today
 
 
 def test_update_sources_updates_changed_url_source(tmp_path):
@@ -136,3 +158,27 @@ def test_release_changed_compares_with_previous_release(tmp_path):
     assert release_changed(out, previous) == ["Test_Dict"]  # never released
     (previous / "Test_Dict.manifest.json").write_text(json.dumps(manifest))
     assert release_changed(out, previous) == []
+
+
+def test_release_notes_list_sources_and_changes(tmp_path):
+    out, previous = tmp_path / "out", tmp_path / "previous"
+    out.mkdir()
+    previous.mkdir()
+    commit = "a" * 40
+    new = {
+        "revision": "2026-11-02",
+        "contentSha256": "b",
+        "entries": {"kanji_meta_bank": 3},
+        "sources": {"data.json": {"version": "b" * 40, "usedFor": "levels"}},
+    }
+    (out / "Test_Dict.manifest.json").write_text(json.dumps(new))
+    assert "First release." in release_notes(out, previous)
+
+    old = {**new, "revision": "2026-11-01", "contentSha256": "a", "entries": {"kanji_meta_bank": 2}}
+    old["sources"] = {"data.json": {"version": commit, "usedFor": "levels"}}
+    (previous / "Test_Dict.manifest.json").write_text(json.dumps(old))
+    notes = release_notes(out, previous)
+    assert "- `data.json` @ `bbbbbbb`: levels" in notes
+    assert "Changes since 2026-11-01" in notes
+    assert "- `data.json`: `aaaaaaa` → `bbbbbbb`" in notes
+    assert "- `kanji_meta_bank`: 2 → 3 entries" in notes
