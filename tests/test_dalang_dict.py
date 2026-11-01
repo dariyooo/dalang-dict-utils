@@ -1,6 +1,8 @@
 import datetime
 import hashlib
+import http.server
 import json
+import threading
 import zipfile
 
 import pytest
@@ -16,6 +18,7 @@ from dalang_dict import (
     package_dictionary,
     release_changed,
     release_notes,
+    sources,
     update_sources,
     used_sources,
     validate_dictionary_dir,
@@ -314,3 +317,34 @@ def test_release_notes_list_sources_and_changes(tmp_path):
     del old["sources"]  # released before source tracking
     (previous / "Test_Dict.manifest.json").write_text(json.dumps(old))
     assert "data.json`:" not in release_notes(out, previous)
+
+
+class _FlakyHandler(http.server.BaseHTTPRequestHandler):
+    """Serves CONTENT, cutting the first response off halfway, and honours `Range` like Tatoeba's CDN."""
+
+    CONTENT = bytes(range(256)) * 1000
+    requests: list[str | None] = []
+
+    def do_GET(self):
+        self.requests.append(self.headers.get("Range"))
+        start = int(self.headers["Range"].removeprefix("bytes=").removesuffix("-")) if self.headers["Range"] else 0
+        self.send_response(206 if start else 200)
+        self.send_header("Content-Length", str(len(self.CONTENT) - start))
+        self.end_headers()
+        body = self.CONTENT[start:]
+        self.wfile.write(body[: len(body) // 2] if len(self.requests) == 1 else body)
+
+    def log_message(self, format, *args):
+        pass
+
+
+def test_download_resumes_cut_off_download(tmp_path, monkeypatch):
+    monkeypatch.setattr(sources.time, "sleep", lambda seconds: None)
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), _FlakyHandler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        sources._download(f"http://127.0.0.1:{server.server_port}/file", tmp_path / "file")
+    finally:
+        server.shutdown()
+    assert (tmp_path / "file").read_bytes() == _FlakyHandler.CONTENT
+    assert _FlakyHandler.requests == [None, f"bytes={len(_FlakyHandler.CONTENT) // 2}-"]

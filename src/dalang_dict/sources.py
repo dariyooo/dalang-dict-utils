@@ -12,8 +12,11 @@ into the manifest so each release lists the data it was built from.
 
 import datetime
 import hashlib
+import http.client
 import json
 import os
+import time
+import urllib.error
 import urllib.request
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -25,6 +28,12 @@ DEFAULT_LOCK_FILE = Path("sources.lock.json")
 PIN_KEYS = ("version", "sha256")
 # Fields that only describe a source, changing them does not relock it
 DESCRIPTION_KEYS = ("used_for",)
+
+DOWNLOAD_RETRIES = 10
+DOWNLOAD_TIMEOUT = 20
+# Some servers (e.g. Tatoeba's) stall at a few KB/s without closing the connection, which no timeout catches
+MIN_DOWNLOAD_SPEED = 50 * 1024
+DOWNLOAD_SPEED_WINDOW = 15
 
 
 @dataclass(frozen=True)
@@ -126,15 +135,59 @@ def _github_api(path: str) -> Any:
 
 
 def _sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    digest = hashlib.sha256()
+    with path.open("rb") as f:
+        while chunk := f.read(1024 * 1024):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _download_part(url: str, part: Path) -> None:
+    """Downloads `url` to `part`, continuing a partial download, raises if the download stalls or is cut off."""
+    resume_at = part.stat().st_size if part.exists() else 0
+    headers = {"User-Agent": "Mozilla/5.0"}
+    if resume_at:
+        headers["Range"] = f"bytes={resume_at}-"
+    request = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(request, timeout=DOWNLOAD_TIMEOUT) as response:
+        resume = resume_at and response.status == 206  # otherwise the server ignored the range
+        expected = int(response.headers.get("Content-Length", 0))
+        received = 0
+        with part.open("ab" if resume else "wb") as f:
+            window_start, window_bytes = time.monotonic(), 0
+            while chunk := response.read(64 * 1024):
+                f.write(chunk)
+                received += len(chunk)
+                window_bytes += len(chunk)
+                elapsed = time.monotonic() - window_start
+                if elapsed >= DOWNLOAD_SPEED_WINDOW:
+                    if window_bytes / elapsed < MIN_DOWNLOAD_SPEED:
+                        raise TimeoutError(f"download stalled at {window_bytes / elapsed / 1024:.1f} KB/s")
+                    window_start, window_bytes = time.monotonic(), 0
+    # A cut off response just ends, `read()` does not raise
+    if received < expected:
+        raise http.client.IncompleteRead(b"", expected - received)
 
 
 def _download(url: str, path: Path) -> None:
+    """Downloads `url` to `path`, retrying failed and stalled downloads where they stopped."""
     print(f"Downloading '{url}'...")
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp_path = path.with_name(path.name + ".part")
-    urllib.request.urlretrieve(url, tmp_path)
-    tmp_path.replace(path)
+    part = path.with_name(path.name + ".part")
+    part.unlink(missing_ok=True)
+    for attempt in range(1, DOWNLOAD_RETRIES + 1):
+        try:
+            _download_part(url, part)
+            break
+        except (OSError, http.client.HTTPException) as e:  # URLError, HTTPError, timeouts, cut off responses
+            if isinstance(e, urllib.error.HTTPError) and e.code == 416:
+                part.unlink(missing_ok=True)  # the partial download is not a prefix of the file anymore
+            if attempt == DOWNLOAD_RETRIES:
+                raise
+            wait = min(5 * attempt, 30)
+            print(f"Attempt {attempt}/{DOWNLOAD_RETRIES} failed ({e}), resuming in {wait}s...")
+            time.sleep(wait)
+    part.replace(path)
 
 
 def load_lock(lock_file: Path = DEFAULT_LOCK_FILE) -> dict[str, dict]:
