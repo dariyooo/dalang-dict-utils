@@ -7,7 +7,7 @@ New repos are created from the Copier template in this repo (see [README](../REA
 
 * Repos: `{script}-{content}-{target}`, lowercase kebab-case, e.g. `kanji-jlpt-levels-yomitan`, `kanji-visual-similarity-yomitan`.
   * `target` is `yomitan` if the dictionary only uses the Yomitan format (works in Yomitan **and** the DaLang apps).
-    Dictionaries with DaDb extensions (example and audio dictionaries, they only work in the apps) are named after
+    Dictionaries in a DaKanji format (see [Formats](#formats), they only work in the apps) are named after
     their app: `dakanji` (Japanese), `dahanzi` (Chinese), `dahanja` (Korean),
     or `dalang` if they are useful across languages (e.g. Tatoeba).
   * Name the language if the script does not imply it (`kanji` = Japanese, `hanzi` = Chinese).
@@ -17,7 +17,7 @@ New repos are created from the Copier template in this repo (see [README](../REA
 * Release assets: `{asset}.zip`, its index as `{asset}.index.json` and its manifest (content hash + entry counts)
   as `{asset}.manifest.json`.
   Variants (languages, audio formats) are `{asset}-{variant}.zip`.
-  A DaDb only variant with extra files (manual) is `{asset}-dadb.zip`.
+  A `dakanji-dictionary` variant of a Yomitan dictionary (e.g. with a manual) is `{asset}-dadb.zip`.
 
 ## Layout
 
@@ -74,34 +74,45 @@ Created with `dalang_dict.build_index()`:
 * The title identifies the dictionary in DaLang, do not change it after the first release.
 * DaLang extension: `exampleTokenization: "manual"` for example dictionaries whose sentences carry `[[form1||form2]]` markup.
 
+## Formats
+
+Every dictionary declares its format, `package_dictionary(..., format=...)` packages and validates it accordingly
+and the manifest records it:
+
+| Format | Works in | Files |
+|---|---|---|
+| `yomitan` (default) | Yomitan and the apps | `index.json`, Yomitan banks, media |
+| `dakanji-dictionary` | the apps | `yomitan` + `audio_list.json` (audio sources), manual (`manual.pdf` or `manual.md` + `manual_icon.svg`) |
+| `dakanji-examples` | the apps | `index.json`, `example_bank_{n}.json`, `example_text_bank_{n}.txt` + `example_text_meta_bank_{n}.json`, `tag_bank_{n}.json`, audio files |
+| `dakanji-audio` | the apps | `yomitan_index.json`, audio files named `Term [Reading] (Pitch).ext`, or `index.json` / `entries.json` mapping them |
+
+* Audio files (`aac mp3 ogg opus flac wav`, lowercase) are always in `audios/`, everything else in the zip root.
+* A manual is only read in a `dakanji-dictionary`.
+* See the DaLang authoring manual for the entry layouts.
+  Radicals (radk + krad JSON) and stroke order (KanjiVG `.svg`) are imported by DaLang too, they become formats here once
+  a repo builds them.
+
 ## Packaging
 
 Done by `dalang_dict.package_dictionary()`:
 
 * Bank files only in the zip root, named `{bank}_{n}.json`.
+  Banks are passed as lists, or as files in `extra_files` when the build streams them to disk (e.g. Tatoeba).
 * Output must be deterministic (stable entry order and JSON formatting).
   DaLang reuses unchanged entries on update based on a hash of their bytes.
-* Audio dictionaries name their metadata `yomitan_index.json`, `index.json` is the audio mapping there.
-* Manuals (`manual.pdf` or `manual.md` + `manual_icon.svg`) go in the zip root and are only read in Yomitan type dictionaries.
-
-DaDb extensions on top of Yomitan, see the DaLang authoring manual for the entry layouts:
-
-| Kind | Files |
-|---|---|
-| Examples | `example_bank_{n}.json`, `example_text_bank_{n}.txt` + `example_text_meta_bank_{n}.json`, `tag_bank_{n}.json` |
-| Audio | `yomitan_index.json`, `index.json` or `entries.json`, audio files (`aac mp3 ogg opus flac wav`, lowercase) |
-| Audio sources | `audio_list.json` in a Yomitan dictionary |
-| Radicals | radk + krad JSON (jmdict-simplified layout) |
-| Stroke order | KanjiVG `.svg` files |
+* The zip contains exactly the validated files, without a top folder.
 
 ## Validation
 
-Every dictionary is validated before it is zipped:
+Every dictionary is validated against the rules of its format before it is zipped:
 
-* Against Yomitan's schemas, vendored in `src/dalang_dict/schemas/yomitan/` and synced weekly by
+* The layout: which files the format has and where (the rules of DaLang's importer).
+* Yomitan's schemas, for the index of every format and the Yomitan banks.
+  They are vendored in `src/dalang_dict/schemas/yomitan/` and synced weekly by
   `.github/workflows/sync-yomitan-schemas.yml`, which commits upstream changes.
-* Planned: against DaDb's schemas for the extensions, synced the same way once they are published with the DaLang website.
-  Until then `validate_dictionary_dir()` rejects bank files it has no schema for.
+* Planned: DaKanji's schemas for the extensions (`audio_list.json`, example banks, audio `index.json` / `entries.json`),
+  synced the same way once they are published with the DaLang website.
+  Until then only their layout is checked.
 
 ## CI and releases
 
