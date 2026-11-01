@@ -3,6 +3,7 @@ name: Dictionary Release
 # Reusable build + release for dictionary repos, see docs/repo-standard.md.
 # Runs on a pushed tag `YYYY-MM-DD`, builds the dictionaries with that tag as revision and publishes everything
 # in out/ as the GitHub release of the tag, with notes listing the sources and changes since the previous release.
+# A release of the same tag is replaced: re-release with `git tag -f <tag> && git push -f origin <tag>`.
 #
 #   on:
 #     push:
@@ -85,10 +86,16 @@ jobs:
       - name: Write release notes
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
         run: |
+          # Compare with the latest other release, a release of the same tag is replaced below
+          PREVIOUS="$(gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts --json tagName \
+            --jq "[.[].tagName | select(. != \"$TAG\")][0] // empty")"
           mkdir -p tmp/previous-release
-          gh release download --repo "$GITHUB_REPOSITORY" --pattern "*.manifest.json" --dir tmp/previous-release \
-            || echo "No previous release with manifests."
+          if [ -n "$PREVIOUS" ]; then
+            gh release download "$PREVIOUS" --repo "$GITHUB_REPOSITORY" --pattern "*.manifest.json" \
+              --dir tmp/previous-release || echo "Release $PREVIOUS has no manifests."
+          fi
           uv run python -m dalang_dict release-notes --previous tmp/previous-release | tee tmp/release-notes.md
 
       - name: Create release
@@ -96,6 +103,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
-        run: >-
-          gh release create "$TAG" out/*.zip out/*.json --repo "$REPO" --title "$TAG" --verify-tag --latest
-          --notes-file tmp/release-notes.md --generate-notes
+        run: |
+          if gh release view "$TAG" --repo "$REPO" > /dev/null 2>&1; then
+            echo "Release $TAG already exists, replacing it."
+            gh release delete "$TAG" --repo "$REPO" --yes
+          fi
+          gh release create "$TAG" out/*.zip out/*.json --repo "$REPO" --title "$TAG" --verify-tag --latest \
+            --notes-file tmp/release-notes.md --generate-notes
