@@ -3,11 +3,21 @@
 from dalang_dict.index import build_index
 from dalang_dict.package import build_manifest, package_dictionary, write_banks
 from dalang_dict.release import manifest_changed, release_changed, release_notes
-from dalang_dict.sources import GitHubFile, Source, Url, Vendored, fetch, update_sources, used_sources
+from dalang_dict.sources import (
+    GitHubFile,
+    GitHubReleaseAsset,
+    Source,
+    Url,
+    Vendored,
+    fetch,
+    update_sources,
+    used_sources,
+)
 from dalang_dict.validate import validate_dictionary_dir
 
 __all__ = [
     "GitHubFile",
+    "GitHubReleaseAsset",
     "Source",
     "Url",
     "Vendored",

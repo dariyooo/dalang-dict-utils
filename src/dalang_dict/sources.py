@@ -49,6 +49,23 @@ class GitHubFile:
 
 
 @dataclass(frozen=True)
+class GitHubReleaseAsset:
+    """The asset `asset` of the GitHub repo `repo` (`owner/name`), locked to the tag of its latest release."""
+
+    name: str
+    repo: str
+    asset: str
+    used_for: str = ""
+    kind: str = "github-release-asset"
+
+    def latest_version(self) -> str:
+        return _github_api(f"repos/{self.repo}/releases/latest")["tag_name"]
+
+    def url(self, version: str) -> str:
+        return f"https://github.com/{self.repo}/releases/download/{version}/{self.asset}"
+
+
+@dataclass(frozen=True)
 class Url:
     """A file at a fixed URL whose content may change, locked to its sha256 (e.g. a daily export).
 
@@ -79,9 +96,14 @@ class Vendored:
     kind: str = "vendored"
 
 
-Source = GitHubFile | Url | Vendored
 # Sources that are downloaded and locked in sources.lock.json
-SOURCE_TYPES: dict[str, type[GitHubFile] | type[Url]] = {"github-file": GitHubFile, "url": Url}
+LockedSource = GitHubFile | GitHubReleaseAsset | Url
+Source = LockedSource | Vendored
+SOURCE_TYPES: dict[str, type[LockedSource]] = {
+    "github-file": GitHubFile,
+    "github-release-asset": GitHubReleaseAsset,
+    "url": Url,
+}
 
 _used_sources: dict[str, dict] = {}
 
@@ -129,11 +151,11 @@ def _declaration(entry: dict) -> dict:
     return {k: v for k, v in entry.items() if k not in PIN_KEYS}
 
 
-def _source_declaration(source: GitHubFile | Url) -> dict:
+def _source_declaration(source: LockedSource) -> dict:
     return {k: v for k, v in asdict(source).items() if k not in DESCRIPTION_KEYS}
 
 
-def _lock_entry(source: GitHubFile | Url, version: str, cache_dir: Path) -> dict:
+def _lock_entry(source: LockedSource, version: str, cache_dir: Path) -> dict:
     """Downloads `version` of `source` into the cache and returns its lock entry.
 
     Sources without a version (`Url`) are versioned by the download date.

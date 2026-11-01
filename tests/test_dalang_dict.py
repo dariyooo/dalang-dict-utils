@@ -7,6 +7,7 @@ import pytest
 
 from dalang_dict import (
     GitHubFile,
+    GitHubReleaseAsset,
     Url,
     Vendored,
     build_index,
@@ -138,6 +139,27 @@ def test_github_file_is_locked_to_latest_commit(tmp_path, monkeypatch):
     assert fetch(source, cache_dir=cache, lock_file=lock_file).read_text() == "data c1"  # stays locked
     assert update_sources(cache_dir=cache, lock_file=lock_file) == ["data.txt"]
     assert load_lock(lock_file)["data.txt"]["version"] == "c2"
+
+
+def test_github_release_asset_is_locked_to_latest_release(tmp_path, monkeypatch):
+    lock_file, cache = tmp_path / "sources.lock.json", tmp_path / "cache"
+    for tag in ("v1", "v2"):
+        (tmp_path / tag).write_text(f"model {tag}")
+    latest = {"tag": "v1"}
+    monkeypatch.setattr(GitHubReleaseAsset, "latest_version", lambda self: latest["tag"])
+    monkeypatch.setattr(GitHubReleaseAsset, "url", lambda self, version: (tmp_path / version).as_uri())
+    source = GitHubReleaseAsset("model.zip", "owner/repo", "model.zip", used_for="weights")
+
+    assert fetch(source, cache_dir=cache, lock_file=lock_file).read_text() == "model v1"
+    assert used_sources()["model.zip"]["version"] == "v1"
+    latest["tag"] = "v2"
+    assert update_sources(cache_dir=cache, lock_file=lock_file) == ["model.zip"]
+    assert fetch(source, cache_dir=cache, lock_file=lock_file).read_text() == "model v2"
+
+
+def test_github_release_asset_url():
+    asset = GitHubReleaseAsset("model.zip", "owner/repo", "weights.zip")
+    assert asset.url("v2.0") == "https://github.com/owner/repo/releases/download/v2.0/weights.zip"
 
 
 def test_manifest_changed():
