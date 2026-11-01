@@ -85,6 +85,10 @@ jobs:
           git commit -m "chore: update sources"
           git push
 
+      - name: Write release notes
+        if: steps.release.outputs.changed == 'true'
+        run: uv run python -m dalang_dict release-notes --previous tmp/previous-release | tee tmp/release-notes.md
+
       - name: Create release
         if: steps.release.outputs.changed == 'true'
         env:
@@ -95,4 +99,5 @@ jobs:
             echo "Release $TAG already exists, replacing it."
             gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
           fi
-          gh release create "$TAG" out/*.zip out/*.json --repo "$GITHUB_REPOSITORY" --title "$TAG" --generate-notes --latest
+          gh release create "$TAG" out/*.zip out/*.json --repo "$GITHUB_REPOSITORY" --title "$TAG" --latest \
+            --notes-file tmp/release-notes.md --generate-notes
