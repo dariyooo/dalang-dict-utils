@@ -24,6 +24,8 @@ dalang-dict-utils = { git = "https://github.com/dariyooo/dalang-dict-utils", tag
 [tool.ruff]
 line-length = 120
 target-version = "py{{ python_version | replace('.', '') }}"
+# Vendored third-party code stays as it was copied
+extend-exclude = ["vendored_sources"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

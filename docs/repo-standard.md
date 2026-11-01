@@ -36,7 +36,7 @@ stats/                optional, committed build statistics
 ## Tooling
 
 * uv with a committed `uv.lock`, Python version in `.python-version` (3.12). No requirements.txt.
-* ruff for linting and formatting (line length 120, rules `E F I UP B`), pyright for type checking.
+* ruff for linting and formatting (line length 120, rules `E F I UP B`, `vendored_sources/` excluded), pyright for type checking.
 * pytest for tests. No unittest.
 * `dalang-dict-utils` as dependency, pinned to a tag.
 
