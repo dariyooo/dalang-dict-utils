@@ -64,6 +64,112 @@ def test_package_dictionary_writes_zip_and_release_index(tmp_path):
     assert manifest["sources"] == used_sources()
 
 
+def _write(path, content: object = ""):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content if isinstance(content, str) else json.dumps(content), encoding="utf-8")
+    return path
+
+
+def test_package_dictionary_validates_the_files_it_zips(tmp_path):
+    index = build_index("Test", "owner/repo", "Test_Dict")
+    manual = _write(tmp_path / "manual.pdf", "pdf")
+    banks = {"kanji_meta_bank": [["一", "freq", 1]]}
+    with pytest.raises(ValueError, match="dakanji-dictionary"):
+        package_dictionary("Test_Dict", index, banks, extra_files={"manual.pdf": manual}, tmp_dir=tmp_path / "tmp")
+    zip_path = package_dictionary(
+        "Test_Dict",
+        index,
+        banks,
+        extra_files={"manual.pdf": manual},
+        format="dakanji-dictionary",
+        tmp_dir=tmp_path / "tmp",
+        out_dir=tmp_path / "out",
+    )
+    with zipfile.ZipFile(zip_path) as zipf:
+        assert sorted(zipf.namelist()) == ["index.json", "kanji_meta_bank_1.json", "manual.pdf"]
+    manifest = json.loads((tmp_path / "out" / "Test_Dict.manifest.json").read_text(encoding="utf-8"))
+    assert manifest["format"] == "dakanji-dictionary"
+
+
+def test_package_audio_dictionary(tmp_path):
+    audio = _write(tmp_path / "猫【ねこ】.mp3", "audio")
+    zip_path = package_dictionary(
+        "Test_Audio",
+        build_index("Test", "owner/repo", "Test_Audio"),
+        {},
+        extra_files={"audios/猫【ねこ】.mp3": audio},
+        format="dakanji-audio",
+        tmp_dir=tmp_path / "tmp",
+        out_dir=tmp_path / "out",
+    )
+    with zipfile.ZipFile(zip_path) as zipf:
+        assert zipf.namelist() == ["yomitan_index.json", "audios/猫【ねこ】.mp3"]
+    manifest = json.loads((tmp_path / "out" / "Test_Audio.manifest.json").read_text(encoding="utf-8"))
+    assert manifest["entries"] == {"audios": 1}
+
+
+def test_package_examples_from_written_banks(tmp_path):
+    bank = _write(tmp_path / "bank.json", [{"sentence": "猫だ。"}, {"sentence": "犬だ。"}])
+    package_dictionary(
+        "Test_Examples",
+        build_index("Test", "owner/repo", "Test_Examples"),
+        {"tag_bank": [["audio", "misc", 0, "Audio", 0]]},
+        extra_files={"example_bank_1.json": bank},
+        format="dakanji-examples",
+        tmp_dir=tmp_path / "tmp",
+        out_dir=tmp_path / "out",
+    )
+    manifest = json.loads((tmp_path / "out" / "Test_Examples.manifest.json").read_text(encoding="utf-8"))
+    assert manifest["entries"] == {"example_bank": 2, "tag_bank": 1}
+
+
+INDEX = build_index("Test", "owner/repo", "Test_Dict")
+TERM_BANK = [["猫", "ねこ", "", "", 0, ["cat"], 1, ""]]
+
+# format, files (archive name -> content), expected error or None
+FORMAT_CASES = [
+    ("yomitan", {"index.json": INDEX, "term_bank_1.json": TERM_BANK, "img/a.png": ""}, None),
+    ("yomitan", {"index.json": INDEX, "example_bank_1.json": []}, "Unknown bank"),
+    ("yomitan", {"index.json": INDEX, "term_bank_1.json": TERM_BANK, "audio_list.json": {}}, "DaKanji extensions"),
+    (
+        "dakanji-dictionary",
+        {"index.json": INDEX, "term_bank_1.json": TERM_BANK, "manual.md": "", "audio_list.json": {}},
+        None,
+    ),
+    ("dakanji-examples", {"index.json": INDEX, "example_bank_1.json": [], "audios/a.opus": ""}, None),
+    (
+        "dakanji-examples",
+        {"index.json": INDEX, "example_text_bank_1.txt": "", "example_text_meta_bank_1.json": []},
+        None,
+    ),
+    ("dakanji-examples", {"index.json": INDEX, "example_text_meta_bank_1.json": []}, "has no text bank"),
+    ("dakanji-examples", {"index.json": INDEX, "tag_bank_1.json": []}, "No example banks"),
+    ("dakanji-examples", {"index.json": INDEX, "example_bank_1.json": [], "a.opus": ""}, "Unexpected files"),
+    ("dakanji-examples", {"index.json": INDEX, "example_bank_1.json": [], "term_bank_1.json": []}, "Unknown bank"),
+    ("dakanji-audio", {"yomitan_index.json": INDEX, "audios/猫【ねこ】(1).mp3": ""}, None),
+    ("dakanji-audio", {"yomitan_index.json": INDEX, "entries.json": {}, "audios/1.opus": ""}, None),
+    ("dakanji-audio", {"yomitan_index.json": INDEX, "猫.mp3": ""}, "No audio files"),
+    ("dakanji-audio", {"yomitan_index.json": INDEX, "audios/猫.mp3": "", "manual.pdf": ""}, "Unexpected files"),
+    ("dakanji-audio", {"index.json": INDEX, "audios/猫.mp3": ""}, "yomitan_index.json"),
+]
+
+
+@pytest.mark.parametrize(("format", "files", "error"), FORMAT_CASES)
+def test_validate_format(tmp_path, format, files, error):
+    for name, content in files.items():
+        _write(tmp_path / name, content)
+    if error is None:
+        validate_dictionary_dir(tmp_path, format)
+    else:
+        with pytest.raises((ValueError, FileNotFoundError), match=error):
+            validate_dictionary_dir(tmp_path, format)
+
+
+def test_validate_rejects_unknown_format(tmp_path):
+    with pytest.raises(ValueError, match="Unknown format"):
+        validate_dictionary_dir(tmp_path, "dadb")
+
+
 def _package(tmp_path, revision, entries):
     index = build_index("Test", "owner/repo", "Test_Dict", revision=revision)
     package_dictionary(

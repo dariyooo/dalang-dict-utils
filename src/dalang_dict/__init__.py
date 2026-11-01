@@ -1,7 +1,7 @@
-"""Fetch sources and build, validate and package DaLang dictionaries (Yomitan format plus DaDb extensions)."""
+"""Fetch sources and build, validate and package DaLang dictionaries (Yomitan and DaKanji formats)."""
 
 from dalang_dict.index import build_index
-from dalang_dict.package import build_manifest, package_dictionary, write_banks
+from dalang_dict.package import build_manifest, count_entries, package_dictionary, write_banks
 from dalang_dict.release import manifest_changed, release_changed, release_notes
 from dalang_dict.sources import (
     GitHubFile,
@@ -13,9 +13,10 @@ from dalang_dict.sources import (
     update_sources,
     used_sources,
 )
-from dalang_dict.validate import validate_dictionary_dir
+from dalang_dict.validate import FORMATS, validate_dictionary_dir
 
 __all__ = [
+    "FORMATS",
     "GitHubFile",
     "GitHubReleaseAsset",
     "Source",
@@ -23,6 +24,7 @@ __all__ = [
     "Vendored",
     "build_index",
     "build_manifest",
+    "count_entries",
     "fetch",
     "manifest_changed",
     "package_dictionary",
