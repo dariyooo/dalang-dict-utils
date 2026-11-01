@@ -49,7 +49,13 @@ Copier asks whether the sources change (`source_updates`), which decides how sou
   A source missing from the lock is locked to its latest version on the next build.
   The *Update* workflow updates the lock weekly (`python -m dalang_dict update-sources`) and releases on changes.
 * **Sources never change**: vendor them in `vendored_sources/{name}/` with a README (origin, license, date retrieved),
-  regardless of their size. Releases are manual only.
+  regardless of their size, and declare them as `Vendored` with the retrieval date as version.
+  Releases are manual only.
+
+Every source has a free text `used_for` (what the dictionary takes from it) and a version:
+the commit for `GitHubFile`, the download date for `Url`, the declared version for `Vendored`.
+`fetch()` records both, `package_dictionary()` writes them into the manifest and the release notes list them
+together with the changes since the previous release (source versions, entry counts).
 
 ## index.json
 
@@ -98,7 +104,7 @@ Every dictionary is validated before it is zipped:
 * `ci.yml` runs on push and pull request: ruff check, ruff format check, pyright, pytest.
 * `release.yml` runs on a pushed tag `YYYY-MM-DD`: CI, `uv run build.py` with the tag as revision
   (`DALANG_DICT_REVISION`, fails if the build had to change `sources.lock.json`),
-  then the GitHub release of the tag containing everything in `out/`.
+  then the GitHub release of the tag containing everything in `out/`, notes from `python -m dalang_dict release-notes`.
   To redo a release, delete the release and the tag and push the tag again.
 * `update.yml` (only if the sources change) runs weekly:
   1. updates `sources.lock.json`, stops if no source changed
