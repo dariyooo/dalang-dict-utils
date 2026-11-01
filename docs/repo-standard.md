@@ -105,7 +105,7 @@ Every dictionary is validated before it is zipped:
 * `release.yml` runs on a pushed tag `YYYY-MM-DD`: CI, `uv run build.py` with the tag as revision
   (`DALANG_DICT_REVISION`, fails if the build had to change `sources.lock.json`),
   then the GitHub release of the tag containing everything in `out/`, notes from `python -m dalang_dict release-notes`.
-  To redo a release, delete the release and the tag and push the tag again.
+  A release of the same tag is replaced, re-release with `git tag -f YYYY-MM-DD && git push -f origin YYYY-MM-DD`.
 * `update.yml` (only if the sources change) runs weekly:
   1. updates `sources.lock.json`, stops if no source changed
   2. runs the checks and rebuilds

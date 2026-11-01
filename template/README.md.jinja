@@ -50,6 +50,7 @@ git tag 2026-11-01 && git push origin 2026-11-01
 ```
 
 The *Release* workflow runs the checks, builds the dictionary with the tag as revision and publishes it as the GitHub release of the tag.
+To redo a release, push the tag again with `git tag -f 2026-11-01 && git push -f origin 2026-11-01`.
 Installed dictionaries pick up new releases through "Check for updates".
 
 ## License
