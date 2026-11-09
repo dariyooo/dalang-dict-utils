@@ -10,6 +10,8 @@ New repos are created from the Copier template in this repo (see [README](../REA
     Dictionaries in a DaKanji format (see [Formats](#formats), they only work in the apps) are named after
     their app: `dakanji` (Japanese), `dahanzi` (Chinese), `dahanja` (Korean),
     or `dalang` if they are useful across languages (e.g. Tatoeba).
+    The same applies to a `yomitan` format dictionary whose data only works as intended in the apps,
+    e.g. `japanese-jlpt-vocabulary-dakanji` stores JLPT levels as frequency values, which Yomitan would mix into its frequency average.
   * Name the language if the script does not imply it (`kanji` = Japanese, `hanzi` = Chinese).
 * User-facing text (GitHub description, README) names the app, e.g. "for Yomitan and DaKanji" for Japanese dictionaries.
   DaLang is only the name of the shared format and tooling.
